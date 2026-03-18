@@ -55,6 +55,15 @@ if (!fs.existsSync(CACHE_META_FILE)) {
 // Initialize Express app
 const app = express();
 
+// Allow all origins
+app.use((req, res, next) => {
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+    if (req.method === 'OPTIONS') return res.sendStatus(204);
+    next();
+});
+
 // Root directory
 app.get('/', (req, res) => {
     res.status(200).json({message: 'success', description: 'API is running.'});
