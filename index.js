@@ -37,7 +37,7 @@ import express from 'express';
 import fs from 'fs';
 
 // Constants and settings
-const PORT = 3000;
+const PORT = 3141;
 const SUPPORTED_FORMATS = ['json', 'txt'];
 const CACHE_META_FILE = 'cache/meta.json';
 const CACHE_DIR = 'cache';
