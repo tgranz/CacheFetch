@@ -44,6 +44,10 @@ const SUPPORTED_FORMATS = ['json', 'txt', 'gz'];
 const CACHE_META_FILE = 'cache/meta.json';
 const CACHE_DIR = 'cache';
 
+function isGzipBuffer(buffer) {
+    return Buffer.isBuffer(buffer) && buffer.length >= 2 && buffer[0] === 0x1f && buffer[1] === 0x8b;
+}
+
 function readCachedData(cacheFile, format) {
     return format === 'gz' ? fs.readFileSync(cacheFile) : fs.readFileSync(cacheFile, 'utf-8');
 }
@@ -90,9 +94,9 @@ app.get('/', (req, res) => {
 // Cache endpoint
 app.get('/cache', (req, res) => {
     // Extract query parameters
-    const url = req.query.url || '';
-    const format = req.query.format || 'json';
-    const maxAge = req.query.maxAge || 3600; // Default 1 hour
+    const url = typeof req.query.url === 'string' ? req.query.url : '';
+    const format = typeof req.query.format === 'string' ? req.query.format : 'json';
+    const maxAge = Number(req.query.maxAge) || 3600; // Default 1 hour
 
     // Verify format
     if (!SUPPORTED_FORMATS.includes(format)) {
@@ -143,7 +147,7 @@ app.get('/cache', (req, res) => {
             if (format === 'json') {
                 return response.json();
             } else if (format === 'gz') {
-                return response.arrayBuffer();
+                return response.arrayBuffer().then(arrayBuffer => Buffer.from(arrayBuffer));
             } else {
                 return response.text();
             }
@@ -158,7 +162,10 @@ app.get('/cache', (req, res) => {
         if (format === 'json') {
             data = JSON.stringify(data);
         } else if (format === 'gz') {
-            data = zlib.gzipSync(Buffer.from(data));
+            // Preserve existing .gz payloads and only gzip non-gzip binary data.
+            if (!isGzipBuffer(data)) {
+                data = zlib.gzipSync(data);
+            }
         } else {
             data = data.toString();
         }
