@@ -13,7 +13,7 @@ CacheFetch was built for [SparkRadar](https://github.com/tgranz/sparkradar) when
 You can host CacheFetch on any server. It is extremely lightweight and runs on one JS file with under 200 lines of code. Just clone the repo, run `npm install` and start it with `node index`.
 
 ## How
-- CacheFetch accepts 3 parameters: `url`, `maxAge`, and `format`. URL is the URL to fetch from. MaxAge defines the maximum age of the cache in seconds. Format defines the format of the response (`txt` or `json`).
+- CacheFetch accepts 3 parameters: `url`, `maxAge`, and `format`. URL is the URL to fetch from. MaxAge defines the maximum age of the cache in seconds. Format defines the format of the response (`txt`, `json`, or `gz`).
 - When a request is recieved, CacheFetch checks for a cached response. If one exists, it will verify the age against maxAge; if the maxAge is greater than the cache age, the cached data will be returned.
 - If the cache is older than maxAge, CacheFetch will attempt to fetch the resource. If it succeeds, it will update the cache and return the new data. If the request fails, the stale cache will still be returned.
 

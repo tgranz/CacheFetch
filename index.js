@@ -10,6 +10,7 @@ The purpose of this API is to provide a reponse every time even if a specific AP
 Currently supports the following formats:
 - JSON ('json')
 - Plain text ('txt')
+- Gzip ('gz')
 
 Endpoints:
 - GET /: Basic endpoint to check if the API is running.
@@ -35,12 +36,29 @@ http://localhost:3000/cache?url=https%3A%2F%2Fapi.sparkradar.app%2Fconnections&m
 // Imports
 import express from 'express';
 import fs from 'fs';
+import zlib from 'node:zlib';
 
 // Constants and settings
 const PORT = 3141;
-const SUPPORTED_FORMATS = ['json', 'txt'];
+const SUPPORTED_FORMATS = ['json', 'txt', 'gz'];
 const CACHE_META_FILE = 'cache/meta.json';
 const CACHE_DIR = 'cache';
+
+function readCachedData(cacheFile, format) {
+    return format === 'gz' ? fs.readFileSync(cacheFile) : fs.readFileSync(cacheFile, 'utf-8');
+}
+
+function sendResponse(res, format, data, statusCode) {
+    if (format === 'json') {
+        return res.status(statusCode).json(JSON.parse(data));
+    }
+
+    if (format === 'gz') {
+        return res.status(statusCode).type('application/gzip').send(data);
+    }
+
+    return res.status(statusCode).type('text/plain').send(data);
+}
 
 // Ensure cache directory exists
 if (!fs.existsSync(CACHE_DIR)) {
@@ -95,12 +113,8 @@ app.get('/cache', (req, res) => {
 
         // Cache is good, return cached data
         if (cacheEntry && (Date.now() - cacheEntry.timestamp) < maxAge * 1000) {
-            const cachedData = fs.readFileSync(cacheFile, 'utf-8');
-            if (format === 'json') {
-                return res.status(200).json(JSON.parse(cachedData));
-            } else {
-                return res.status(200).type('text/plain').send(cachedData);
-            }
+            const cachedData = readCachedData(cacheFile, format);
+            return sendResponse(res, format, cachedData, 200);
         }
 
         // Cache is stale by request. Attempt to re-fetch but return stale data if fetch fails
@@ -115,12 +129,8 @@ app.get('/cache', (req, res) => {
         timeout.abort();
 
         if (isStaleCache) {
-            const cachedData = fs.readFileSync(cacheFile, 'utf-8');
-            if (format === 'json') {
-                return res.status(204).json(JSON.parse(cachedData));
-            } else {
-                return res.status(204).type('text/plain').send(cachedData);
-            }
+            const cachedData = readCachedData(cacheFile, format);
+            return sendResponse(res, format, cachedData, 204);
         } else {
             return res.status(504).json({message: 'timeout', description: 'The request timed out while fetching data. No cached data available.'});
         }
@@ -132,6 +142,8 @@ app.get('/cache', (req, res) => {
         if (response.ok) {
             if (format === 'json') {
                 return response.json();
+            } else if (format === 'gz') {
+                return response.arrayBuffer();
             } else {
                 return response.text();
             }
@@ -145,6 +157,8 @@ app.get('/cache', (req, res) => {
         clearTimeout(fetchTimeout);
         if (format === 'json') {
             data = JSON.stringify(data);
+        } else if (format === 'gz') {
+            data = zlib.gzipSync(Buffer.from(data));
         } else {
             data = data.toString();
         }
@@ -158,11 +172,7 @@ app.get('/cache', (req, res) => {
         fs.writeFileSync(CACHE_META_FILE, JSON.stringify(cacheMeta));
 
         // Return the fetched data
-        if (format === 'json') {
-            res.status(200).json(JSON.parse(data));
-        } else {
-            res.status(200).type('text/plain').send(data);
-        }
+        return sendResponse(res, format, data, 200);
     })
     .catch(error => {
         if (!res.headersSent) {
