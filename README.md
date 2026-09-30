@@ -10,12 +10,14 @@
 CacheFetch was built for [SparkRadar](https://github.com/tgranz/sparkradar) when I realized that requests for the SPC outlooks and storm centers failed due to a fetch timeout very frequently.
 
 ## Where
-You can host CacheFetch on any server. It is extremely lightweight and runs on one JS file with under 200 lines of code. Just clone the repo, run `npm install` and start it with `node index`.
+You can host CacheFetch on any server. It is extremely lightweight and runs on one JS file with under 200 lines of code (excluding comments). Just clone the repo, run `npm install` and start it with `node index`.
 
 ## How
 - CacheFetch accepts 3 parameters: `url`, `maxAge`, and `format`. URL is the URL to fetch from. MaxAge defines the maximum age of the cache in seconds. Format defines the format of the response (`txt`, `json`, or `gz`).
 - When a request is recieved, CacheFetch checks for a cached response. If one exists, it will verify the age against maxAge; if the maxAge is greater than the cache age, the cached data will be returned.
 - If the cache is older than maxAge, CacheFetch will attempt to fetch the resource. If it succeeds, it will update the cache and return the new data. If the request fails, the stale cache will still be returned.
+
+As of the latest version there is a new endpoint /cors, which does not use any caching and is solely a CORS bypass. It accepts only `format` and `url`. Format can be `txt` or `png`.
 
 ## When
 CacheFetch was made in 2026.

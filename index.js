@@ -7,7 +7,7 @@ The purpose of this API is to provide a reponse every time even if a specific AP
 
 (c) 2026 tgranz | MIT License
 
-Currently supports the following formats:
+Currently supports the following formats for caching:
 - JSON ('json')
 - Plain text ('txt')
 - Gzip ('gz')
@@ -18,6 +18,9 @@ Endpoints:
   - url: The URL to fetch data from.
   - format (optional): The format of the cached data. Default is json.
   - maxAge (optional): The maximum age of the cache in seconds. Default is 3600 (1 hour).
+- GET /cors: Fetches data from the specified URL (to bypass CORS)
+  - url: The URL to fetch data from.
+  - format (optional): The format of the response. Default is txt. Supports txt and png.
 
 Response Codes:
 - 200: Success. Data was returned fulfilling request requirements.
@@ -40,7 +43,8 @@ import zlib from 'node:zlib';
 
 // Constants and settings
 const PORT = 3141;
-const SUPPORTED_FORMATS = ['json', 'txt', 'gz'];
+const CACHE_FORMATS = ['json', 'txt', 'gz'];
+const CORS_FORMATS = ['txt', 'png'];
 const CACHE_META_FILE = 'cache/meta.json';
 const CACHE_DIR = 'cache';
 
@@ -99,8 +103,8 @@ app.get('/cache', (req, res) => {
     const maxAge = Number(req.query.maxAge) || 3600; // Default 1 hour
 
     // Verify format
-    if (!SUPPORTED_FORMATS.includes(format)) {
-        return res.status(400).json({message: 'invalid format', description: `Invalid format. Supported formats include: ${SUPPORTED_FORMATS.join(', ')}.`});
+    if (!CACHE_FORMATS.includes(format)) {
+        return res.status(400).json({message: 'invalid format', description: `Invalid format. Supported formats include: ${CACHE_FORMATS.join(', ')}.`});
     }
 
     // Identify cache file path
@@ -180,6 +184,46 @@ app.get('/cache', (req, res) => {
 
         // Return the fetched data
         return sendResponse(res, format, data, 200);
+    })
+    .catch(error => {
+        if (!res.headersSent) {
+            res.status(500).json({message: 'error', description: 'An error occurred while fetching data.', error: error.message});
+        }
+    });
+});
+
+app.get('/cors', (req, res) => {
+    const format = req.query.format || 'txt';
+
+    if (!CORS_FORMATS.includes(format)) {
+        return res.status(400).json({message: 'invalid format', description: `Invalid format. Supported formats include: ${CORS_FORMATS.join(', ')}.`});
+    }
+
+    // Fetch and return as normal, this is a cors bypass
+    const url = req.query.url;
+    if (!url) {
+        return res.status(400).json({message: 'missing url', description: 'URL query parameter is required.'});
+    }
+
+    fetch(url)
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`Failed to fetch from URL. Status: ${response.status}`);
+        }
+        if (format === 'txt') {
+            return response.text();
+        } else if (format === 'png') {
+            return response.arrayBuffer().then(arrayBuffer => Buffer.from(arrayBuffer));
+        }
+    })
+    .then(data => {
+        if (format === 'txt') {
+            res.setHeader('Content-Type', 'text/plain');
+            res.send(data);
+        } else if (format === 'png') {
+            res.setHeader('Content-Type', 'image/png');
+            res.send(data);
+        }
     })
     .catch(error => {
         if (!res.headersSent) {
